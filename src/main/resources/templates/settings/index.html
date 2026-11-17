@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Настройки и импорт')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Настройки, демонстрационные данные и импорт CSV', ~{::main})}">
+    <main>
+        <!-- Режим данных и управление демо-данными -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-database-gear me-2 text-warning"></i>Режим и демонстрационные данные
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">
+                            Демонстрационные записи помечены флагом <code>is_demo</code> и полностью изолированы от реальных данных предприятия.
+                        </p>
+                        <div class="row g-2 mb-3 small">
+                            <div class="col-6">
+                                <div class="p-2 border rounded bg-light">
+                                    <div class="fw-bold mb-1">Демо-набор:</div>
+                                    <div>Заказов: <strong th:text="${demoStats.orders()}">0</strong></div>
+                                    <div>Товаров: <strong th:text="${demoStats.products()}">0</strong></div>
+                                    <div>Ингредиентов: <strong th:text="${demoStats.ingredients()}">0</strong></div>
+                                    <div>Расходов: <strong th:text="${demoStats.expenses()}">0</strong></div>
+                                    <div>Сотрудников / смен: <strong th:text="${demoStats.employees()} + ' / ' + ${demoStats.shifts()}">0</strong></div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 border rounded bg-light">
+                                    <div class="fw-bold mb-1">Реальные данные:</div>
+                                    <div>Заказов: <strong th:text="${demoStats.realOrders()}">0</strong></div>
+                                    <div>Товаров: <strong th:text="${demoStats.realProducts()}">0</strong></div>
+                                    <div>Ингредиентов: <strong th:text="${demoStats.realIngredients()}">0</strong></div>
+                                    <div>Расходов: <strong th:text="${demoStats.realExpenses()}">0</strong></div>
+                                    <div>Сотрудников: <strong th:text="${demoStats.realEmployees()}">0</strong></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <form th:action="@{/settings/mode}" method="post" class="d-inline">
+                                <input type="hidden" name="demo" th:value="${!demoMode}">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left-right me-1"></i>
+                                    <span th:text="${demoMode} ? 'Переключиться на реальные данные' : 'Переключиться на демо-данные'">Переключить</span>
+                                </button>
+                            </form>
+
+                            <form th:action="@{/settings/demo/reload}" method="post" class="d-inline"
+                                  onsubmit="return confirm('Пересоздать демонстрационный набор (~400 заказов)? Реальные данные не будут затронуты.')">
+                                <button type="submit" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Загрузить / обновить демо
+                                </button>
+                            </form>
+
+                            <form th:if="${demoStats.hasDemoData()}" th:action="@{/settings/demo/clear}" method="post" class="d-inline"
+                                  onsubmit="return confirm('Удалить все демонстрационные данные? Реальные данные останутся в базе.')">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash me-1"></i>Очистить демо-данные
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Общие настройки предприятия -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-shop me-2 text-primary"></i>Общие параметры предприятия
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/settings/general}" th:object="${settingsForm}" method="post">
+                            <div class="mb-3">
+                                <label class="form-label">Название предприятия *</label>
+                                <input type="text" class="form-control" th:field="*{businessName}" required>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">Час открытия (0–23) *</label>
+                                    <input type="number" min="0" max="23" class="form-control" th:field="*{openHour}" required>
+                                    <div class="form-text">Используется в модели Пуассона</div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Час закрытия (1–24) *</label>
+                                    <input type="number" min="1" max="24" class="form-control" th:field="*{closeHour}" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-danger btn-sm px-4">
+                                <i class="bi bi-check-lg me-1"></i>Сохранить настройки
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Импорт CSV -->
+        <section id="csv-import" class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Импорт данных из CSV (Excel / UTF-8)
+            </div>
+            <div class="card-body">
+                <div th:if="${importResult != null}" class="alert mb-4"
+                     th:classappend="${importResult.hasErrors()} ? 'alert-warning' : 'alert-success'">
+                    <div class="fw-bold mb-1">
+                        Результат импорта (<span th:text="${importResult.fileType}">Файл</span>):
+                        добавлено <strong th:text="${importResult.imported}">0</strong>,
+                        пропущено дубликатов <strong th:text="${importResult.duplicates}">0</strong>.
+                    </div>
+                    <ul th:if="${importResult.hasErrors()}" class="mb-0 small mt-2">
+                        <li th:each="err : ${importResult.errors}" th:text="${err}">Ошибка</li>
+                    </ul>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-5">
+                        <form th:action="@{/settings/import}" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label">Тип импортируемых данных *</label>
+                                <select name="type" class="form-select" required>
+                                    <option value="ingredients">1. Ингредиенты</option>
+                                    <option value="products">2. Товары</option>
+                                    <option value="recipes">3. Состав блюд (технологические карты)</option>
+                                    <option value="orders" selected>4. Заказы</option>
+                                    <option value="expenses">5. Расходы</option>
+                                    <option value="employees">6. Сотрудники</option>
+                                    <option value="shifts">7. Рабочие смены</option>
+                                </select>
+                                <div class="form-text">
+                                    Данные загружаются в активный сейчас набор (<strong th:text="${demoMode} ? 'Демо' : 'Реальные'"></strong>).
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">CSV-файл *</label>
+                                <input type="file" name="file" accept=".csv,.txt" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-upload me-1"></i>Импортировать CSV
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="col-lg-7">
+                        <h3 class="h6 fw-bold mb-2">Форматы CSV и шаблоны для скачивания</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle small mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Раздел</th>
+                                    <th>Колонки (разделитель <code>;</code> или <code>,</code>)</th>
+                                    <th class="text-end">Шаблон</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>Ингредиенты</td>
+                                    <td><code>name;unit;unit_cost</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/ingredients}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Товары</td>
+                                    <td><code>name;category;price;active</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/products}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Состав блюд</td>
+                                    <td><code>product_name;ingredient_name;quantity</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/recipes}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Заказы</td>
+                                    <td><code>order_number;date;time;items;total_amount;comment</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/orders}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Расходы</td>
+                                    <td><code>name;category;amount;date;type;description</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/expenses}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Сотрудники</td>
+                                    <td><code>full_name;position;phone;hourly_rate;hire_date</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/employees}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                <tr>
+                                    <td>Смены</td>
+                                    <td><code>employee_name;shift_date;start_time;end_time;worked_hours</code></td>
+                                    <td class="text-end"><a th:href="@{/settings/import/template/shifts}" class="btn btn-outline-secondary btn-sm">CSV</a></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Смена пароля и пользователи -->
+        <div class="row g-4">
+            <section id="security" class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header"><i class="bi bi-shield-lock me-2 text-secondary"></i>Смена пароля</div>
+                    <div class="card-body">
+                        <form th:action="@{/settings/password}" th:object="${passwordForm}" method="post">
+                            <div class="mb-3">
+                                <label class="form-label">Текущий пароль *</label>
+                                <input type="password" class="form-control" th:field="*{currentPassword}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Новый пароль *</label>
+                                <input type="password" class="form-control" th:field="*{newPassword}" minlength="6" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Повторите новый пароль *</label>
+                                <input type="password" class="form-control" th:field="*{confirmPassword}" minlength="6" required>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">Обновить пароль</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <section id="users" class="col-lg-7" th:if="${isAdmin}">
+                <div class="card h-100">
+                    <div class="card-header"><i class="bi bi-person-badge me-2 text-danger"></i>Пользователи системы</div>
+                    <div class="card-body">
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Логин</th>
+                                    <th>ФИО</th>
+                                    <th>Роль</th>
+                                    <th>Статус</th>
+                                    <th class="text-end"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="u : ${users}">
+                                    <td class="fw-semibold" th:text="${u.username}">admin</td>
+                                    <td th:text="${u.fullName}">Администратор</td>
+                                    <td><span class="badge bg-light text-dark border" th:text="${u.role.name}">ADMIN</span></td>
+                                    <td>
+                                        <span th:if="${u.enabled}" class="badge bg-success-subtle text-success">Активен</span>
+                                        <span th:unless="${u.enabled}" class="badge bg-danger-subtle text-danger">Отключён</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <form th:action="@{/settings/users/{id}/toggle(id=${u.id})}" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                                    th:text="${u.enabled} ? 'Отключить' : 'Включить'">Перекл.</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 class="h6 fw-bold mb-2">Добавить пользователя</h3>
+                        <form th:action="@{/settings/users}" th:object="${userForm}" method="post" class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Логин</label>
+                                <input type="text" class="form-control form-control-sm" th:field="*{username}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">Имя</label>
+                                <input type="text" class="form-control form-control-sm" th:field="*{fullName}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Пароль</label>
+                                <input type="password" class="form-control form-control-sm" th:field="*{password}" minlength="6" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted mb-1">Роль</label>
+                                <select class="form-select form-select-sm" th:field="*{role}">
+                                    <option value="MANAGER">MANAGER</option>
+                                    <option value="ADMIN">ADMIN</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-danger btn-sm">Создать пользователя</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

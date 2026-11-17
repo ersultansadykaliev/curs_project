@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${isEdit} ? 'Редактирование расхода' : 'Новый расход')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell(${isEdit} ? 'Редактирование расхода' : 'Новый расход', ~{::main})}">
+    <main>
+        <div class="mb-3">
+            <a th:href="@{/expenses}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>К списку расходов
+            </a>
+        </div>
+
+        <div class="card" style="max-width: 680px;">
+            <div class="card-header" th:text="${isEdit} ? 'Изменить расход' : 'Регистрация расхода'">Расход</div>
+            <div class="card-body">
+                <form th:action="@{/expenses}" th:object="${form}" method="post">
+                    <input type="hidden" th:field="*{id}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Название расхода *</label>
+                        <input type="text" class="form-control" th:field="*{name}" placeholder="Например: Аренда помещения" required>
+                        <div class="text-danger small" th:errors="*{name}"></div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Категория *</label>
+                            <select class="form-select" th:field="*{category}" required>
+                                <option th:each="c : ${categories}" th:value="${c}" th:text="${c.label}">Категория</option>
+                            </select>
+                            <div class="text-danger small" th:errors="*{category}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Тип расхода *</label>
+                            <select class="form-select" th:field="*{type}" required>
+                                <option th:each="t : ${types}" th:value="${t}" th:text="${t.label}">Постоянный</option>
+                            </select>
+                            <div class="text-danger small" th:errors="*{type}"></div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Сумма (сом) *</label>
+                            <input type="number" step="0.01" min="0.01" class="form-control" th:field="*{amount}" required>
+                            <div class="text-danger small" th:errors="*{amount}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Дата *</label>
+                            <input type="date" class="form-control" th:field="*{expenseDate}" required>
+                            <div class="text-danger small" th:errors="*{expenseDate}"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Описание</label>
+                        <textarea class="form-control" rows="2" th:field="*{description}" placeholder="Накладная, период, примечание..."></textarea>
+                        <div class="text-danger small" th:errors="*{description}"></div>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger px-4">
+                        <i class="bi bi-check-lg me-1"></i>Сохранить расход
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

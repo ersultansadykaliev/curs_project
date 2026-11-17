@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Ингредиенты')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Справочник ингредиентов', ~{::main})}">
+    <main>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <p class="text-muted small mb-0">
+                При изменении стоимости единицы ингредиента себестоимость всех блюд, использующих его, обновляется автоматически.
+            </p>
+            <a th:href="@{/ingredients/new}" class="btn btn-danger btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Добавить ингредиент
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название ингредиента</th>
+                            <th>Ед. измерения</th>
+                            <th class="text-end">Стоимость единицы (pᵢ)</th>
+                            <th class="text-end">Входит в блюда</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(ingredients)}">
+                            <td colspan="6" class="text-center text-muted py-4">Ингредиенты ещё не добавлены.</td>
+                        </tr>
+                        <tr th:each="ing : ${ingredients}">
+                            <td class="text-muted" th:text="'#' + ${ing.id}">#1</td>
+                            <td class="fw-semibold" th:text="${ing.name}">Булочка</td>
+                            <td th:text="${ing.unit}">шт</td>
+                            <td class="text-end fw-medium" th:text="${@fmt.money(ing.unitCost)}">0 сом</td>
+                            <td class="text-end" th:text="${usageCounts[ing.id] ?: 0} + ' блюд(а)'">0</td>
+                            <td class="text-end text-nowrap">
+                                <a th:href="@{/ingredients/{id}/edit(id=${ing.id})}" class="btn btn-outline-primary btn-sm" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form th:action="@{/ingredients/{id}/delete(id=${ing.id})}" method="post" class="d-inline"
+                                      onsubmit="return confirm('Удалить этот ингредиент?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Финансовые отчёты')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Финансовые отчёты', ~{::main})}">
+    <main>
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" th:action="@{/finance}" class="row g-2 align-items-end">
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата с</label>
+                        <input type="date" name="from" class="form-control form-control-sm" th:value="${period.from()}">
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата по</label>
+                        <input type="date" name="to" class="form-control form-control-sm" th:value="${period.to()}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Группировка</label>
+                        <select name="grouping" class="form-select form-select-sm">
+                            <option th:each="g : ${groupings}" th:value="${g.name()}"
+                                    th:selected="${grouping == g}" th:text="${g.label}">По дням</option>
+                        </select>
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel me-1"></i>Сформировать отчёт
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="formula-box mb-4">
+            <strong>Финансовая модель:</strong> &nbsp;
+            R = &Sigma;(P<sub>i</sub> &times; n<sub>i</sub>) &nbsp;|&nbsp;
+            COGS = &Sigma;(C<sub>i</sub> &times; n<sub>i</sub>) &nbsp;|&nbsp;
+            GP = R &minus; COGS &nbsp;|&nbsp;
+            OP = GP &minus; OE
+            <div class="small text-muted mt-1">
+                OE — операционные расходы без категории «Закупка продуктов» (во избежание двойного учёта сырья с COGS).
+            </div>
+        </div>
+
+        <!-- Карточки финансовых показателей -->
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Выручка (R)</div>
+                    <div class="kpi-value text-primary" th:text="${@fmt.money(summary.revenue())}">0</div>
+                    <div class="kpi-sub" th:text="'Заказов: ' + ${summary.ordersCount()}">0</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Себестоимость (COGS)</div>
+                    <div class="kpi-value text-warning" th:text="${@fmt.money(summary.cogs())}">0</div>
+                    <div class="kpi-sub" th:text="'Продано единиц: ' + ${summary.unitsSold()}">0</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Валовая прибыль (GP = R − COGS)</div>
+                    <div class="kpi-value text-success" th:text="${@fmt.money(summary.grossProfit())}">0</div>
+                    <div class="kpi-sub" th:text="'Валовая маржа: ' + ${@fmt.pct(summary.grossMarginPercent())}">0%</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-card">
+                    <div class="kpi-label">Операционная прибыль (OP = GP − OE)</div>
+                    <div class="kpi-value"
+                         th:classappend="${summary.operatingProfit() >= 0} ? 'text-success' : 'text-danger'"
+                         th:text="${@fmt.money(summary.operatingProfit())}">0</div>
+                    <div class="kpi-sub">
+                        OE: <strong th:text="${@fmt.money(summary.operatingExpenses())}">0</strong> ·
+                        Рентабельность: <strong th:text="${@fmt.pct(summary.operatingMarginPercent())}">0%</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- График -->
+        <div class="card mb-4">
+            <div class="card-header">Выручка, совокупные затраты (COGS + OE) и операционная прибыль</div>
+            <div class="card-body">
+                <div class="chart-box">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица по периодам -->
+        <div class="card mb-4">
+            <div class="card-header">Детализация финансовых показателей (<span th:text="${grouping.label}">По дням</span>)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Период</th>
+                            <th class="text-end">Заказов</th>
+                            <th class="text-end">Выручка (R)</th>
+                            <th class="text-end">COGS</th>
+                            <th class="text-end">Валовая приб. (GP)</th>
+                            <th class="text-end">Опер. расходы (OE)</th>
+                            <th class="text-end">Опер. приб. (OP)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${rows}">
+                            <td class="fw-medium" th:text="${r.label()}">01.01.2026</td>
+                            <td class="text-end" th:text="${r.ordersCount()}">0</td>
+                            <td class="text-end" th:text="${@fmt.money(r.revenue())}">0</td>
+                            <td class="text-end text-muted" th:text="${@fmt.money(r.cogs())}">0</td>
+                            <td class="text-end text-success" th:text="${@fmt.money(r.grossProfit())}">0</td>
+                            <td class="text-end text-muted" th:text="${@fmt.money(r.operatingExpenses())}">0</td>
+                            <td class="text-end fw-bold"
+                                th:classappend="${r.operatingProfit() >= 0} ? 'text-success' : 'text-danger'"
+                                th:text="${@fmt.money(r.operatingProfit())}">0</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Структура расходов по категориям -->
+        <div class="card">
+            <div class="card-header">Структура расходов предприятия за период</div>
+            <div class="card-body p-0">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Категория</th>
+                        <th>Учёт в операционной прибыли</th>
+                        <th class="text-end">Сумма</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="entry : ${expenseByCategory}">
+                        <td class="fw-medium" th:text="${entry.key.label}">Категория</td>
+                        <td>
+                            <span th:if="${entry.key.operatingExpense}" class="badge bg-success-subtle text-success">Включено в OE</span>
+                            <span th:unless="${entry.key.operatingExpense}" class="badge bg-secondary-subtle text-secondary">Справочно (учтено через COGS)</span>
+                        </td>
+                        <td class="text-end fw-semibold" th:text="${@fmt.money(entry.value)}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<script th:inline="javascript">
+    const finLabels = /*[[${chartLabels}]]*/ [];
+    const finRev = /*[[${chartRevenue}]]*/ [];
+    const finCosts = /*[[${chartCosts}]]*/ [];
+    const finProfit = /*[[${chartProfit}]]*/ [];
+
+    if (document.getElementById('financeChart')) {
+        new Chart(document.getElementById('financeChart'), {
+            type: 'bar',
+            data: {
+                labels: finLabels,
+                datasets: [
+                    {
+                        label: 'Выручка (R)',
+                        data: finRev,
+                        backgroundColor: 'rgba(37, 99, 235, 0.78)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Затраты (COGS + OE)',
+                        data: finCosts,
+                        backgroundColor: 'rgba(245, 158, 11, 0.78)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Операционная прибыль (OP)',
+                        data: finProfit,
+                        type: 'line',
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.15)',
+                        borderWidth: 2,
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Себестоимость')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Расчёт себестоимости продукции', ~{::main})}">
+    <main>
+        <div class="formula-box mb-4">
+            <strong>Формула расчёта себестоимости одного блюда:</strong>
+            &nbsp; C = &Sigma;(q<sub>i</sub> &times; p<sub>i</sub>), &nbsp;
+            <span class="small text-muted">где q<sub>i</sub> — количество ингредиента на порцию, p<sub>i</sub> — стоимость единицы ингредиента.</span>
+        </div>
+
+        <div class="row g-4">
+            <!-- Список блюд -->
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Товары и себестоимость</span>
+                        <a th:href="@{/products/new}" class="btn btn-outline-primary btn-sm">+ Товар</a>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <div th:if="${#lists.isEmpty(products)}" class="list-group-item text-muted small py-4 text-center">
+                            Нет товаров в каталоге.
+                        </div>
+                        <a th:each="p : ${products}"
+                           th:href="@{/costing(productId=${p.id()})}"
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                           th:classappend="${selected != null and selected.id == p.id()} ? 'active'">
+                            <div>
+                                <div class="fw-semibold" th:text="${p.name()}">Бургер</div>
+                                <div class="small" th:classappend="${selected != null and selected.id == p.id()} ? 'text-white-50' : 'text-muted'">
+                                    Цена: <span th:text="${@fmt.money(p.price())}">0</span> ·
+                                    Ингредиентов: <span th:text="${p.ingredientsCount()}">0</span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold" th:text="${@fmt.money(p.cost())}">0</div>
+                                <div class="small" th:classappend="${selected != null and selected.id == p.id()} ? 'text-white-50' : 'text-success'"
+                                     th:text="'Маржа ' + ${@fmt.pct(p.marginPercent())}">0%</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Детальная технологическая карта выбранного блюда -->
+            <div class="col-lg-7">
+                <div th:if="${selected == null}" class="card">
+                    <div class="card-body text-center text-muted py-5">
+                        Выберите товар слева или добавьте новый товар, чтобы задать состав ингредиентов.
+                    </div>
+                </div>
+
+                <div th:if="${selected != null}" class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Технологическая карта: <strong th:text="${selected.name}">Бургер</strong></span>
+                        <a th:href="@{/ingredients/new}" class="btn btn-outline-secondary btn-sm">+ Ингредиент</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-4">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Цена продажи (P)</div>
+                                    <div class="kpi-value" th:text="${@fmt.money(selected.price)}">0</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Себестоимость (C)</div>
+                                    <div class="kpi-value text-primary" th:text="${@fmt.money(selectedCost)}">0</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Маржа (M = P − C)</div>
+                                    <div class="kpi-value text-success" th:text="${@fmt.money(selectedMargin)}">0</div>
+                                    <div class="kpi-sub" th:text="${@fmt.pct(selectedMarginPct)} + ' от цены'">0%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mb-4">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Ингредиент</th>
+                                    <th class="text-end">Норма (qᵢ)</th>
+                                    <th class="text-end">Цена ед. (pᵢ)</th>
+                                    <th class="text-end">Затраты (qᵢ × pᵢ)</th>
+                                    <th class="text-end"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:if="${#lists.isEmpty(selected.ingredients)}">
+                                    <td colspan="5" class="text-center text-muted py-3">
+                                        Ингредиенты ещё не привязаны — себестоимость равна 0.
+                                    </td>
+                                </tr>
+                                <tr th:each="line : ${selected.ingredients}">
+                                    <td class="fw-medium" th:text="${line.ingredient.name}">Булочка</td>
+                                    <td class="text-end" th:text="${@fmt.num(line.quantity.doubleValue(), 3)} + ' ' + ${line.ingredient.unit}">1 шт</td>
+                                    <td class="text-end text-muted" th:text="${@fmt.money(line.ingredient.unitCost)}">15 сом</td>
+                                    <td class="text-end fw-semibold" th:text="${@fmt.money(line.lineCost)}">15 сом</td>
+                                    <td class="text-end">
+                                        <form th:action="@{/costing/{pid}/recipe/{lid}/delete(pid=${selected.id}, lid=${line.id})}"
+                                              method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Убрать из состава">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                </tbody>
+                                <tfoot th:unless="${#lists.isEmpty(selected.ingredients)}">
+                                <tr class="table-light fw-bold">
+                                    <td colspan="3">Итого себестоимость одной порции C:</td>
+                                    <td class="text-end text-primary" th:text="${@fmt.money(selectedCost)}">0 сом</td>
+                                    <td></td>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <h3 class="h6 fw-bold mb-2">Добавить или обновить ингредиент в составе</h3>
+                        <form th:action="@{/costing/{pid}/recipe(pid=${selected.id})}" th:object="${recipeForm}"
+                              method="post" class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1">Ингредиент</label>
+                                <select class="form-select form-select-sm" th:field="*{ingredientId}" required>
+                                    <option value="">— Выберите ингредиент —</option>
+                                    <option th:each="ing : ${ingredients}" th:value="${ing.id}"
+                                            th:text="${ing.name} + ' (' + ${ing.unit} + ', ' + ${@fmt.money(ing.unitCost)} + ')'">
+                                        Ингредиент
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Количество (qᵢ)</label>
+                                <input type="number" step="0.0001" min="0.0001" class="form-control form-control-sm"
+                                       th:field="*{quantity}" placeholder="0.15" required>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">
+                                    <i class="bi bi-plus-lg me-1"></i>Привязать
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

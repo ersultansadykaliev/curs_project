@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${isEdit} ? 'Редактирование заказа' : 'Новый заказ')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell(${isEdit} ? 'Редактирование заказа' : 'Новый заказ', ~{::main})}">
+    <main>
+        <div class="mb-3">
+            <a th:href="@{/orders}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>К списку заказов
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span th:text="${isEdit} ? 'Изменить данные заказа' : 'Оформление нового заказа'">Заказ</span>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/orders}" th:object="${form}" method="post" id="orderForm">
+                    <input type="hidden" th:field="*{id}">
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Номер чека</label>
+                            <input type="text" class="form-control" th:field="*{orderNumber}"
+                                   placeholder="Автоматически, если пусто">
+                            <div class="text-danger small" th:errors="*{orderNumber}"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Дата *</label>
+                            <input type="date" class="form-control" th:field="*{orderDate}" required>
+                            <div class="text-danger small" th:errors="*{orderDate}"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Время *</label>
+                            <input type="time" class="form-control" th:field="*{orderTime}" required>
+                            <div class="text-danger small" th:errors="*{orderTime}"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Комментарий</label>
+                            <input type="text" class="form-control" th:field="*{comment}"
+                                   placeholder="На вынос, доставка, зал...">
+                            <div class="text-danger small" th:errors="*{comment}"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h2 class="h6 fw-bold mb-0">Состав заказа (можно добавить несколько товаров)</h2>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtn">
+                            <i class="bi bi-plus-lg me-1"></i>Добавить позицию
+                        </button>
+                    </div>
+
+                    <div th:if="${#lists.isEmpty(products)}" class="alert alert-warning small">
+                        В меню нет активных товаров. Добавьте товары в разделе «Товары» или укажите общую сумму заказа вручную ниже.
+                    </div>
+
+                    <div id="itemsContainer" class="mb-3">
+                        <div class="row g-2 align-items-center mb-2 order-item-row" th:each="item, stat : *{items}">
+                            <div class="col-md-6">
+                                <select class="form-select product-select" th:field="*{items[__${stat.index}__].productId}">
+                                    <option value="" data-price="0">— Выберите товар —</option>
+                                    <option th:each="p : ${products}" th:value="${p.id}"
+                                            th:data-price="${p.price}"
+                                            th:text="${p.name} + ' (' + ${@fmt.money(p.price)} + ')'">Товар</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <input type="number" min="1" max="1000" class="form-control qty-input"
+                                       th:field="*{items[__${stat.index}__].quantity}" placeholder="Кол-во">
+                            </div>
+                            <div class="col-4 col-md-3 text-end fw-medium line-total">0,00 сом</div>
+                            <div class="col-2 col-md-1 text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-item-btn" title="Удалить строку">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 align-items-center border-top pt-3 mt-3">
+                        <div class="col-md-5">
+                            <label class="form-label small text-muted">Сумма вручную (если состав не указан), сом</label>
+                            <input type="number" step="0.01" min="0" class="form-control" th:field="*{manualTotal}"
+                                   id="manualTotalInput" placeholder="Заполняется только без позиций">
+                            <div class="text-danger small" th:errors="*{manualTotal}"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Итого по позициям:</div>
+                            <div class="h4 fw-bold text-primary mb-0" id="calculatedTotal">0,00 сом</div>
+                        </div>
+                        <div class="col-md-3 text-md-end">
+                            <button type="submit" class="btn btn-danger px-4">
+                                <i class="bi bi-check-lg me-1"></i>Сохранить заказ
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('itemsContainer');
+    const addBtn = document.getElementById('addItemBtn');
+    const totalEl = document.getElementById('calculatedTotal');
+    const manualInput = document.getElementById('manualTotalInput');
+
+    function reindexAndCalc() {
+        const rows = container.querySelectorAll('.order-item-row');
+        let sum = 0;
+        let hasSelected = false;
+
+        rows.forEach((row, idx) => {
+            const sel = row.querySelector('.product-select');
+            const qty = row.querySelector('.qty-input');
+            const lineEl = row.querySelector('.line-total');
+
+            sel.name = `items[${idx}].productId`;
+            qty.name = `items[${idx}].quantity`;
+
+            const opt = sel.options[sel.selectedIndex];
+            const price = opt ? parseFloat(opt.getAttribute('data-price') || '0') : 0;
+            const q = parseInt(qty.value || '0', 10);
+            const lineSum = (sel.value && q > 0) ? price * q : 0;
+
+            if (sel.value) hasSelected = true;
+            sum += lineSum;
+            lineEl.textContent = formatSom(lineSum);
+        });
+
+        totalEl.textContent = hasSelected ? formatSom(sum) : 'будет взята сумма вручную';
+        manualInput.disabled = hasSelected;
+    }
+
+    addBtn.addEventListener('click', function () {
+        const firstRow = container.querySelector('.order-item-row');
+        if (!firstRow) return;
+        const clone = firstRow.cloneNode(true);
+        clone.querySelector('.product-select').value = '';
+        clone.querySelector('.qty-input').value = '1';
+        container.appendChild(clone);
+        reindexAndCalc();
+    });
+
+    container.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-item-btn');
+        if (!btn) return;
+        const rows = container.querySelectorAll('.order-item-row');
+        if (rows.length > 1) {
+            btn.closest('.order-item-row').remove();
+        } else {
+            const row = btn.closest('.order-item-row');
+            row.querySelector('.product-select').value = '';
+            row.querySelector('.qty-input').value = '1';
+        }
+        reindexAndCalc();
+    });
+
+    container.addEventListener('change', reindexAndCalc);
+    container.addEventListener('input', reindexAndCalc);
+    reindexAndCalc();
+});
+</script>
+</body>
+</html>

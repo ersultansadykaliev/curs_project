@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Математическая аналитика')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Модуль математической аналитики (7 моделей)', ~{::main})}">
+    <main>
+        <!-- Фильтр периода и параметров моделей -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" th:action="@{/analytics}" class="row g-2 align-items-end">
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата с</label>
+                        <input type="date" name="from" class="form-control form-control-sm" th:value="${period.from()}">
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата по</label>
+                        <input type="date" name="to" class="form-control form-control-sm" th:value="${period.to()}">
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Интервал Пуассона</label>
+                        <select name="intervalType" class="form-select form-select-sm">
+                            <option value="HOUR" th:selected="${intervalType == 'HOUR'}">1 рабочий час</option>
+                            <option value="HOUR_OF_DAY" th:selected="${intervalType == 'HOUR_OF_DAY'}">Конкретный час суток</option>
+                            <option value="DAY" th:selected="${intervalType == 'DAY'}">1 день</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Час суток (0–23)</label>
+                        <input type="number" name="hour" min="0" max="23" class="form-control form-control-sm"
+                               th:value="${hour}" placeholder="Пиковый">
+                    </div>
+                    <div class="col-sm-4 col-md-1">
+                        <label class="form-label small text-muted mb-1">k (Пуассон)</label>
+                        <input type="number" name="queryK" min="0" max="1000" class="form-control form-control-sm"
+                               th:value="${queryK}">
+                    </div>
+                    <div class="col-sm-4 col-md-1">
+                        <label class="form-label small text-muted mb-1">Окно (дн.)</label>
+                        <input type="number" name="window" min="1" max="60" class="form-control form-control-sm"
+                               th:value="${window}">
+                    </div>
+                    <div class="col-sm-4 col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-calculator me-1"></i>Рассчитать
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Быстрая навигация по моделям -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="#model1" class="btn btn-outline-secondary btn-sm">№1 Средние показатели</a>
+            <a href="#model2" class="btn btn-outline-secondary btn-sm">№2 Пуассон</a>
+            <a href="#model3" class="btn btn-outline-secondary btn-sm">№3 Скользящее среднее</a>
+            <a href="#model4" class="btn btn-outline-secondary btn-sm">№4 Себестоимость и маржа</a>
+            <a href="#model5" class="btn btn-outline-secondary btn-sm">№5 Точка безубыточности</a>
+            <a href="#model6" class="btn btn-outline-secondary btn-sm">№6 Точность (MAE)</a>
+            <a href="#model7" class="btn btn-outline-secondary btn-sm">№7 Производительность</a>
+        </div>
+
+        <!-- ================================================================ МОДЕЛЬ №1 -->
+        <section id="model1" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-primary me-2">Модель №1</span>Средние показатели продаж</span>
+                <span class="small text-muted">Описательная статистика</span>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    X&#772; = &Sigma;x<sub>i</sub> / n &nbsp;&nbsp;|&nbsp;&nbsp;
+                    A = R / N &nbsp;&nbsp;|&nbsp;&nbsp;
+                    s = &radic;[&Sigma;(x<sub>i</sub> &minus; X&#772;)&sup2; / (n &minus; 1)]
+                </div>
+                <div class="small text-muted mb-3">
+                    <strong>Исходные данные:</strong>
+                    выручка R = <span th:text="${@fmt.money(averages.revenue())}">0</span>,
+                    количество заказов N = <span th:text="${averages.orders()}">0</span>,
+                    число дней наблюдений n = <span th:text="${averages.days()}">0</span>.
+                </div>
+
+                <div th:if="${averages.error() != null}" class="alert alert-warning mb-0" th:text="${averages.error()}">Нет данных</div>
+
+                <div th:if="${averages.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Средний чек (A)</div>
+                                <div class="kpi-value text-primary" th:text="${@fmt.money(averages.averageCheck())}">0</div>
+                                <div class="kpi-sub">Медиана: <span th:text="${@fmt.money(averages.medianCheck())}">0</span></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Средняя выручка в день</div>
+                                <div class="kpi-value" th:text="${@fmt.money(averages.meanRevenuePerDay())}">0</div>
+                                <div class="kpi-sub">Ст. откл. s: <span th:text="${@fmt.money(averages.stdRevenuePerDay())}">0</span></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Среднее число заказов/день</div>
+                                <div class="kpi-value" th:text="${@fmt.num(averages.meanOrdersPerDay(), 1)}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Итого за период</div>
+                                <div class="kpi-value" th:text="${@fmt.money(averages.revenue())}">0</div>
+                                <div class="kpi-sub" th:text="${averages.orders()} + ' заказов'">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-box-sm mb-3">
+                        <canvas id="model1Chart"></canvas>
+                    </div>
+                    <div class="interpretation-box" th:text="${averages.interpretation()}">Интерпретация</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №2 -->
+        <section id="model2" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-danger me-2">Модель №2</span>Распределение Пуассона (поток заказов)</span>
+                <span class="small text-muted" th:text="${poisson.intervalLabel()}">1 час</span>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    P(X = k) = (&lambda;<sup>k</sup> &times; e<sup>&minus;&lambda;</sup>) / k! &nbsp;&nbsp;|&nbsp;&nbsp;
+                    &lambda; = N / T
+                </div>
+                <div class="small text-muted mb-3">
+                    <strong>Исходные данные:</strong>
+                    заказов N = <span th:text="${poisson.ordersCount()}">0</span>,
+                    число одинаковых интервалов T = <span th:text="${poisson.intervalsCount()}">0</span>
+                    (<span th:text="${poisson.intervalLabel()}"></span>),
+                    рабочие часы предприятия: <span th:text="${openHour} + ':00–' + ${closeHour} + ':00'">09:00–23:00</span>.
+                </div>
+
+                <div th:if="${poisson.error() != null}" class="alert alert-warning mb-0" th:text="${poisson.error()}">Нет данных</div>
+
+                <div th:if="${poisson.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Параметр &lambda; = N / T</div>
+                                <div class="kpi-value text-danger" th:text="${@fmt.num(poisson.lambda(), 3)}">0</div>
+                                <div class="kpi-sub">Среднее заказов за интервал</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label" th:text="'P(X = ' + ${poisson.queryK()} + ')'">P(X = k)</div>
+                                <div class="kpi-value" th:text="${@fmt.pct(poisson.queryProbability() * 100)}">0%</div>
+                                <div class="kpi-sub" th:text="'P(X ≥ ' + ${poisson.queryK()} + ') = ' + ${@fmt.pct(poisson.queryAtLeast() * 100)}">0%</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Квантиль 95% / Мода</div>
+                                <div class="kpi-value" th:text="${poisson.quantile95()} + ' зак.'">0</div>
+                                <div class="kpi-sub" th:text="'Наиболее вероятно: ' + ${poisson.mostLikelyK()} + ' зак.'">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Персонал под 95% нагрузку</div>
+                                <div class="kpi-value text-primary"
+                                     th:text="${poisson.recommendedStaff() != null} ? ${poisson.recommendedStaff()} + ' чел.' : '—'">—</div>
+                                <div class="kpi-sub" th:text="'Индекс дисперсии s²/λ = ' + ${@fmt.num(poisson.dispersionIndex())}">1.0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-7">
+                            <div class="chart-box-sm">
+                                <canvas id="model2Chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>k</th>
+                                        <th class="text-end">P(X=k)</th>
+                                        <th class="text-end">P(X&ge;k)</th>
+                                        <th class="text-end">Факт (интервалов)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="r : ${poisson.rows()}" th:classappend="${r.k() == poisson.queryK()} ? 'table-primary'">
+                                        <td class="fw-semibold" th:text="${r.k()}">0</td>
+                                        <td class="text-end" th:text="${@fmt.pct(r.probability() * 100)}">0%</td>
+                                        <td class="text-end" th:text="${@fmt.pct(r.atLeast() * 100)}">0%</td>
+                                        <td class="text-end" th:text="${r.observedIntervals()} + ' (' + ${@fmt.pct(r.observedShare() * 100)} + ')'">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="interpretation-box" th:text="${poisson.interpretation()}">Интерпретация</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №3 -->
+        <section id="model3" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-info text-dark me-2">Модель №3</span>Скользящее среднее (прогноз выручки)</span>
+                <form th:if="${forecast.error() == null}" method="post" th:action="@{/analytics/forecast/save}" class="m-0">
+                    <input type="hidden" name="from" th:value="${period.from()}">
+                    <input type="hidden" name="to" th:value="${period.to()}">
+                    <input type="hidden" name="window" th:value="${window}">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-bookmark-plus me-1"></i>Сохранить прогноз в БД
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    F(t + 1) = [R(t) + R(t &minus; 1) + ... + R(t &minus; w + 1)] / w, &nbsp;
+                    <span class="small text-muted">выбранное окно w = <strong th:text="${forecast.window()}">7</strong> дн.</span>
+                </div>
+                <div class="small text-muted mb-3">
+                    <strong>Исходные данные:</strong>
+                    ряд дневной выручки за <span th:text="${forecast.observations()}">0</span> дней.
+                    Если наблюдений меньше окна w, система честно сообщает о нехватке данных.
+                </div>
+
+                <div th:if="${forecast.error() != null}" class="alert alert-warning mb-0" th:text="${forecast.error()}">
+                    Недостаточно данных
+                </div>
+
+                <div th:if="${forecast.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Прогноз выручки F(t+1)</div>
+                                <div class="kpi-value text-primary" th:text="${@fmt.money(forecast.forecastValue())}">0</div>
+                                <div class="kpi-sub">На дату <strong th:text="${#temporals.format(forecast.targetDate(), 'dd.MM.yyyy')}">завтра</strong></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Размер окна (w)</div>
+                                <div class="kpi-value" th:text="${forecast.window()} + ' дн.'">7 дн.</div>
+                                <div class="kpi-sub">Наблюдений в ряду: <span th:text="${forecast.observations()}">0</span> дн.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Средняя ошибка модели (MAE)</div>
+                                <div class="kpi-value" th:text="${forecast.mae() != null} ? ${@fmt.money(forecast.mae())} : '—'">—</div>
+                                <div class="kpi-sub" th:if="${forecast.relativeMaePercent() != null}"
+                                     th:text="${@fmt.pct(forecast.relativeMaePercent())} + ' от средней выручки'">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-box-sm mb-3">
+                        <canvas id="model3Chart"></canvas>
+                    </div>
+                    <div class="interpretation-box mb-3" th:text="${forecast.forecastInterpretation()}">Интерпретация</div>
+                </div>
+
+                <!-- Сохранённые прогнозы -->
+                <div th:unless="${#lists.isEmpty(savedForecasts)}" class="mt-3">
+                    <h3 class="h6 fw-bold">Сохранённые прогнозы (таблица forecasts)</h3>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                            <tr>
+                                <th>Дата расчёта</th>
+                                <th>Прогноз на дату</th>
+                                <th class="text-end">Окно</th>
+                                <th class="text-end">Прогноз (ŷ)</th>
+                                <th class="text-end">Факт (y)</th>
+                                <th class="text-end">|y − ŷ|</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="sf : ${savedForecasts}">
+                                <td th:text="${#temporals.format(sf.createdAt(), 'dd.MM.yyyy HH:mm')}">01.01</td>
+                                <td class="fw-medium" th:text="${#temporals.format(sf.targetDate(), 'dd.MM.yyyy')}">02.01</td>
+                                <td class="text-end" th:text="${sf.window()} + ' дн.'">7 дн.</td>
+                                <td class="text-end fw-semibold" th:text="${@fmt.money(sf.forecastValue())}">0</td>
+                                <td class="text-end" th:text="${sf.actualValue() != null} ? ${@fmt.money(sf.actualValue())} : 'ожидается'">—</td>
+                                <td class="text-end" th:text="${sf.absoluteError() != null} ? ${@fmt.money(sf.absoluteError())} : '—'">—</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №6 (MAE) -->
+        <section id="model6" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-secondary me-2">Модель №6</span>Оценка точности прогноза (MAE)</span>
+                <span class="small text-muted">Проверка скользящего среднего на истории</span>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    MAE = &Sigma;|y<sub>i</sub> &minus; y&#770;<sub>i</sub>| / n
+                </div>
+
+                <div th:if="${forecast.maeError() != null}" class="alert alert-warning mb-0" th:text="${forecast.maeError()}">
+                    Недостаточно данных для оценки MAE
+                </div>
+
+                <div th:if="${forecast.maeError() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">MAE (для w = <span th:text="${forecast.window()}">7</span>)</div>
+                                <div class="kpi-value text-primary" th:text="${@fmt.money(forecast.mae())}">0</div>
+                                <div class="kpi-sub" th:text="'Проверено дней: ' + ${forecast.backtestCount()}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Относительная ошибка</div>
+                                <div class="kpi-value" th:text="${forecast.relativeMaePercent() != null} ? ${@fmt.pct(forecast.relativeMaePercent())} : '—'">0%</div>
+                                <div class="kpi-sub">Чем меньше MAE, тем точнее прогноз</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Сравнение окон w</div>
+                                <div class="small">
+                                    <div class="d-flex justify-content-between" th:each="wc : ${forecast.windowComparison()}">
+                                        <span>w = <strong th:text="${wc.window()}">7</strong> (<span th:text="${wc.observations()}">0</span> дн.)</span>
+                                        <strong th:text="${@fmt.money(wc.mae())}">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-box-sm mb-3">
+                        <canvas id="model6Chart"></canvas>
+                    </div>
+                    <div class="interpretation-box" th:text="${forecast.maeInterpretation()}">Интерпретация MAE</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №4 -->
+        <section id="model4" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-success me-2">Модель №4</span>Себестоимость и маржинальная прибыль</span>
+                <a th:href="@{/costing}" class="btn btn-outline-secondary btn-sm">Технологические карты</a>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    C = &Sigma;(q<sub>i</sub> &times; p<sub>i</sub>) &nbsp;|&nbsp;
+                    M = P &minus; C &nbsp;|&nbsp;
+                    M<sub>total</sub> = &Sigma;n<sub>i</sub>(P<sub>i</sub> &minus; C<sub>i</sub>)
+                </div>
+
+                <div th:if="${margins.error() != null}" class="alert alert-warning mb-0" th:text="${margins.error()}">Нет продаж</div>
+
+                <div th:if="${margins.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Общая маржинальная прибыль (M_total)</div>
+                                <div class="kpi-value text-success" th:text="${@fmt.money(margins.totalMargin())}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Выручка по позициям (R)</div>
+                                <div class="kpi-value" th:text="${@fmt.money(margins.totalRevenue())}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Себестоимость продаж (COGS)</div>
+                                <div class="kpi-value text-warning" th:text="${@fmt.money(margins.totalCogs())}">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-5">
+                            <div class="chart-box-sm">
+                                <canvas id="model4Chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Товар</th>
+                                        <th class="text-end">Прод.</th>
+                                        <th class="text-end">P</th>
+                                        <th class="text-end">C</th>
+                                        <th class="text-end">M = P−C</th>
+                                        <th class="text-end">Маржа %</th>
+                                        <th class="text-end">M_total (доля)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="r : ${margins.rows()}">
+                                        <td class="fw-medium" th:text="${r.name()}">Товар</td>
+                                        <td class="text-end" th:text="${r.units()}">0</td>
+                                        <td class="text-end" th:text="${@fmt.num(r.averagePrice(), 0)}">0</td>
+                                        <td class="text-end text-muted" th:text="${@fmt.num(r.cost(), 2)}">0</td>
+                                        <td class="text-end" th:text="${@fmt.num(r.unitMargin(), 2)}">0</td>
+                                        <td class="text-end" th:text="${@fmt.pct(r.marginPercent())}">0%</td>
+                                        <td class="text-end fw-semibold text-success">
+                                            <span th:text="${@fmt.money(r.totalMargin())}">0</span>
+                                            <span class="small text-muted" th:text="'(' + ${@fmt.pct(r.shareOfMargin())} + ')'"></span>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="interpretation-box" th:text="${margins.interpretation()}">Интерпретация</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №5 -->
+        <section id="model5" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-warning text-dark me-2">Модель №5</span>Точка безубыточности</span>
+                <span class="small text-muted">В натуральном и денежном выражении</span>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    Q<sub>BE</sub> = F / (P &minus; C<sub>v</sub>) &nbsp;|&nbsp;
+                    Q<sub>BE</sub> = F / M<sub>avg</sub> &nbsp;|&nbsp;
+                    R<sub>BE</sub> = F / k<sub>M</sub>
+                </div>
+
+                <div th:if="${breakEven.error() != null}" class="alert alert-warning mb-0" th:text="${breakEven.error()}">Ошибка</div>
+
+                <div th:if="${breakEven.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Постоянные расходы (F)</div>
+                                <div class="kpi-value" th:text="${@fmt.money(breakEven.fixedCosts())}">0</div>
+                                <div class="kpi-sub">Перем. накладные: <span th:text="${@fmt.money(breakEven.variableOverhead())}">0</span></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Точка безубыточности (шт.)</div>
+                                <div class="kpi-value text-primary" th:text="${@fmt.num(breakEven.breakEvenUnits(), 0)} + ' ед.'">0</div>
+                                <div class="kpi-sub" th:text="'≈ ' + ${@fmt.num(breakEven.breakEvenUnitsPerDay(), 1)} + ' ед./день'">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Точка безубыточности (сом)</div>
+                                <div class="kpi-value text-danger" th:text="${@fmt.money(breakEven.breakEvenRevenue())}">0</div>
+                                <div class="kpi-sub" th:text="'Доля маржи k_M = ' + ${@fmt.pct(breakEven.marginRatio() * 100)}">0%</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Запас прочности</div>
+                                <div class="kpi-value"
+                                     th:classappend="${breakEven.safetyMarginPercent() >= 0} ? 'text-success' : 'text-danger'"
+                                     th:text="${@fmt.pct(breakEven.safetyMarginPercent())}">0%</div>
+                                <div class="kpi-sub" th:text="'Факт: ' + ${@fmt.money(breakEven.actualRevenue())}">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-7">
+                            <div class="chart-box-sm">
+                                <canvas id="model5Chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Товар</th>
+                                        <th class="text-end">P</th>
+                                        <th class="text-end">Cᵥ</th>
+                                        <th class="text-end">Q_BE (ед.)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="r : ${breakEven.productRows()}">
+                                        <td class="fw-medium" th:text="${r.name()}">Товар</td>
+                                        <td class="text-end" th:text="${@fmt.num(r.price(), 0)}">0</td>
+                                        <td class="text-end" th:text="${@fmt.num(r.variableCost(), 2)}">0</td>
+                                        <td class="text-end fw-semibold"
+                                            th:text="${r.breakEvenUnits() != null} ? ${@fmt.num(r.breakEvenUnits(), 0)} + ' шт.' : '—'">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="interpretation-box" th:text="${breakEven.interpretation()}">Интерпретация</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ МОДЕЛЬ №7 -->
+        <section id="model7" class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="badge bg-dark me-2">Модель №7</span>Производительность персонала</span>
+                <a th:href="@{/staff}" class="btn btn-outline-secondary btn-sm">Смены и сотрудники</a>
+            </div>
+            <div class="card-body">
+                <div class="formula-box mb-3">
+                    E = N / H &nbsp;&nbsp;
+                    <span class="small text-muted">(N — количество заказов, H — отработанные человеко-часы)</span>
+                </div>
+
+                <div th:if="${productivity.error() != null}" class="alert alert-warning mb-0" th:text="${productivity.error()}">Нет смен</div>
+
+                <div th:if="${productivity.error() == null}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Производительность (E)</div>
+                                <div class="kpi-value text-primary" th:text="${@fmt.num(productivity.productivity())} + ' зак./чел·ч'">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Заказов (N)</div>
+                                <div class="kpi-value" th:text="${productivity.orders()}">0</div>
+                                <div class="kpi-sub" th:text="'Дней со сменами: ' + ${productivity.daysWithShifts()}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Человеко-часов (H)</div>
+                                <div class="kpi-value" th:text="${@fmt.num(productivity.personHours(), 1)} + ' ч'">0 ч</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-6">
+                            <div class="chart-box-sm">
+                                <canvas id="model7Chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Час</th>
+                                        <th class="text-end">Ср. заказов</th>
+                                        <th class="text-end">Ср. персонал</th>
+                                        <th class="text-end">E (зак./чел·ч)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="h : ${productivity.hours()}">
+                                        <td class="fw-medium" th:text="${#numbers.formatInteger(h.hour(), 2)} + ':00–' + ${#numbers.formatInteger(h.hour() + 1, 2)} + ':00'">12:00</td>
+                                        <td class="text-end" th:text="${@fmt.num(h.averageOrders(), 2)}">0</td>
+                                        <td class="text-end" th:text="${@fmt.num(h.averageStaff(), 1)}">0</td>
+                                        <td class="text-end fw-semibold text-primary"
+                                            th:text="${h.productivity() != null} ? ${@fmt.num(h.productivity(), 2)} : 'нет смены'">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="interpretation-box" th:text="${productivity.interpretation()}">Интерпретация</div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<script th:inline="javascript">
+    // Модель №1: Выручка и заказы по дням
+    const m1Labels = /*[[${averages.labels()}]]*/ [];
+    const m1Rev = /*[[${averages.dailyRevenue()}]]*/ [];
+    if (document.getElementById('model1Chart') && m1Labels.length > 0) {
+        new Chart(document.getElementById('model1Chart'), {
+            type: 'bar',
+            data: {
+                labels: m1Labels,
+                datasets: [{
+                    label: 'Выручка в день, сом',
+                    data: m1Rev,
+                    backgroundColor: 'rgba(37, 99, 235, 0.72)',
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // Модель №2: Распределение Пуассона (теория vs факт)
+    const pRows = /*[[${poisson.rows()}]]*/ [];
+    if (document.getElementById('model2Chart') && pRows.length > 0) {
+        const sliced = pRows.slice(0, 25);
+        new Chart(document.getElementById('model2Chart'), {
+            type: 'bar',
+            data: {
+                labels: sliced.map(r => r.k),
+                datasets: [
+                    {
+                        label: 'Теоретическая P(X = k)',
+                        data: sliced.map(r => +(r.probability * 100).toFixed(2)),
+                        backgroundColor: 'rgba(225, 29, 72, 0.78)',
+                        borderRadius: 3
+                    },
+                    {
+                        label: 'Фактическая доля, %',
+                        data: sliced.map(r => +(r.observedShare * 100).toFixed(2)),
+                        type: 'line',
+                        borderColor: '#1d4ed8',
+                        borderWidth: 2,
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { title: { display: true, text: 'Вероятность, %' } } }
+            }
+        });
+    }
+
+    // Модель №3: Факт vs скользящее среднее + прогноз на завтра
+    const fLabels = /*[[${forecast.labels()}]]*/ [];
+    const fActual = /*[[${forecast.actual()}]]*/ [];
+    const fPred = /*[[${forecast.predicted()}]]*/ [];
+    if (document.getElementById('model3Chart') && fLabels.length > 0) {
+        new Chart(document.getElementById('model3Chart'), {
+            type: 'line',
+            data: {
+                labels: fLabels,
+                datasets: [
+                    {
+                        label: 'Фактическая выручка, сом',
+                        data: fActual,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Скользящее среднее / прогноз, сом',
+                        data: fPred,
+                        borderColor: '#dc2626',
+                        borderDash: [6, 4],
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // Модель №6: Абсолютная ошибка по дням и сравнение окон
+    const winCmp = /*[[${forecast.windowComparison()}]]*/ [];
+    if (document.getElementById('model6Chart') && winCmp.length > 0) {
+        new Chart(document.getElementById('model6Chart'), {
+            type: 'bar',
+            data: {
+                labels: winCmp.map(w => 'Окно w = ' + w.window + ' дн.'),
+                datasets: [{
+                    label: 'MAE, сом',
+                    data: winCmp.map(w => w.mae),
+                    backgroundColor: 'rgba(107, 114, 128, 0.78)',
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // Модель №4: Вклад товаров в маржинальную прибыль
+    const mRows = /*[[${margins.rows()}]]*/ [];
+    if (document.getElementById('model4Chart') && mRows.length > 0) {
+        new Chart(document.getElementById('model4Chart'), {
+            type: 'bar',
+            data: {
+                labels: mRows.map(r => r.name),
+                datasets: [{
+                    label: 'Маржинальная прибыль, сом',
+                    data: mRows.map(r => r.totalMargin),
+                    backgroundColor: 'rgba(22, 163, 74, 0.78)',
+                    borderRadius: 4
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // Модель №5: График точки безубыточности
+    const beLabels = /*[[${breakEven.chartLabels()}]]*/ [];
+    const beRev = /*[[${breakEven.chartRevenue()}]]*/ [];
+    const beCosts = /*[[${breakEven.chartCosts()}]]*/ [];
+    if (document.getElementById('model5Chart') && beLabels.length > 0) {
+        new Chart(document.getElementById('model5Chart'), {
+            type: 'line',
+            data: {
+                labels: beLabels.map(x => x + ' ед.'),
+                datasets: [
+                    {
+                        label: 'Выручка, сом',
+                        data: beRev,
+                        borderColor: '#16a34a',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Общие затраты (F + Cᵥ·Q), сом',
+                        data: beCosts,
+                        borderColor: '#dc2626',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // Модель №7: Производительность персонала по дням
+    const pDayLabels = /*[[${productivity.dayLabels()}]]*/ [];
+    const pDayValues = /*[[${productivity.dayProductivity()}]]*/ [];
+    if (document.getElementById('model7Chart') && pDayLabels.length > 0) {
+        new Chart(document.getElementById('model7Chart'), {
+            type: 'line',
+            data: {
+                labels: pDayLabels,
+                datasets: [{
+                    label: 'Производительность E (зак./чел·ч)',
+                    data: pDayValues,
+                    borderColor: '#111827',
+                    backgroundColor: 'rgba(17, 24, 39, 0.08)',
+                    fill: true,
+                    tension: 0.25
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        });
+    }
+</script>
+</body>
+</html>

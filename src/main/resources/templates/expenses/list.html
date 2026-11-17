@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Расходы')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Модуль расходов предприятия', ~{::main})}">
+    <main>
+        <div class="alert alert-info small mb-4">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Исключение двойного учёта:</strong> расходы категории «Закупка продуктов» фиксируются для контроля денежных трат,
+            но <strong>не включаются</strong> в операционные расходы (OE) при расчёте прибыли, так как стоимость израсходованного сырья
+            уже учтена в себестоимости проданных блюд (COGS).
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" th:action="@{/expenses}" class="row g-2 align-items-end">
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата с</label>
+                        <input type="date" name="from" class="form-control form-control-sm" th:value="${period.from()}">
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата по</label>
+                        <input type="date" name="to" class="form-control form-control-sm" th:value="${period.to()}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Категория</label>
+                        <select name="category" class="form-select form-select-sm">
+                            <option value="">Все категории</option>
+                            <option th:each="c : ${categories}" th:value="${c.name()}"
+                                    th:selected="${selectedCategory == c}" th:text="${c.label}">Категория</option>
+                        </select>
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel me-1"></i>Фильтр
+                        </button>
+                        <a th:href="@{/expenses}" class="btn btn-outline-secondary btn-sm">Сбросить</a>
+                    </div>
+                    <div class="col-md text-md-end">
+                        <a th:href="@{/expenses/new}" class="btn btn-danger btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Добавить расход
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Сводка по категориям -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Операционные расходы (OE) за выборку</div>
+                    <div class="kpi-value text-primary" th:text="${@fmt.money(operatingTotal)}">0 сом</div>
+                    <div class="kpi-sub">Учитываются в операционной прибыли OP = GP − OE</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Закупка продуктов (справочно)</div>
+                    <div class="kpi-value text-secondary" th:text="${@fmt.money(purchasesTotal)}">0 сом</div>
+                    <div class="kpi-sub">Исключена из OE во избежание двойного списания</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">По категориям (весь период)</div>
+                    <div class="small">
+                        <div class="d-flex justify-content-between" th:each="entry : ${totalsByCategory}">
+                            <span class="text-muted" th:text="${entry.key.label}">Аренда</span>
+                            <strong th:text="${@fmt.money(entry.value)}">0</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Дата</th>
+                            <th>Название</th>
+                            <th>Категория</th>
+                            <th>Тип</th>
+                            <th class="text-end">Сумма</th>
+                            <th>Описание</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(expenses)}">
+                            <td colspan="8" class="text-center text-muted py-4">Расходов за выбранный период нет.</td>
+                        </tr>
+                        <tr th:each="e : ${expenses}">
+                            <td class="text-muted" th:text="'#' + ${e.id}">#1</td>
+                            <td th:text="${#temporals.format(e.expenseDate, 'dd.MM.yyyy')}">01.01.2026</td>
+                            <td class="fw-semibold" th:text="${e.name}">Аренда</td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${e.category.operatingExpense} ? 'bg-light text-dark border' : 'bg-secondary-subtle text-secondary border'"
+                                      th:text="${e.category.label}">Аренда</span>
+                            </td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${e.type.name() == 'FIXED'} ? 'bg-info-subtle text-info-emphasis' : 'bg-warning-subtle text-warning-emphasis'"
+                                      th:text="${e.type.label}">Постоянный</span>
+                            </td>
+                            <td class="text-end fw-semibold" th:text="${@fmt.money(e.amount)}">0 сом</td>
+                            <td class="small text-muted" th:text="${e.description ?: '—'}">—</td>
+                            <td class="text-end text-nowrap">
+                                <a th:href="@{/expenses/{id}/edit(id=${e.id})}" class="btn btn-outline-primary btn-sm" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form th:action="@{/expenses/{id}/delete(id=${e.id})}" method="post" class="d-inline"
+                                      onsubmit="return confirm('Удалить этот расход?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

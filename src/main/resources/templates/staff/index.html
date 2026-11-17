@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Персонал')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Модуль персонала и графиков смен', ~{::main})}">
+    <main>
+        <div class="card mb-4">
+            <div class="card-body py-3">
+                <form method="get" th:action="@{/staff}" class="row g-2 align-items-end">
+                    <div class="col-sm-4 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата с</label>
+                        <input type="date" name="from" class="form-control form-control-sm" th:value="${period.from()}">
+                    </div>
+                    <div class="col-sm-4 col-md-2">
+                        <label class="form-label small text-muted mb-1">Дата по</label>
+                        <input type="date" name="to" class="form-control form-control-sm" th:value="${period.to()}">
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel me-1"></i>Показать смены
+                        </button>
+                        <a th:href="@{/staff}" class="btn btn-outline-secondary btn-sm">Сбросить</a>
+                    </div>
+                    <div class="col-md text-md-end d-flex flex-wrap justify-content-md-end gap-2">
+                        <a th:href="@{/staff/employees/new}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-person-plus me-1"></i>Добавить сотрудника
+                        </a>
+                        <a th:href="@{/staff/shifts/new}" class="btn btn-danger btn-sm">
+                            <i class="bi bi-clock-history me-1"></i>Добавить смену
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Сводка производительности E = N / H -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Производительность (E = N / H)</div>
+                    <div class="kpi-value text-primary"
+                         th:text="${productivity.error() == null} ? ${@fmt.num(productivity.productivity())} + ' зак./чел·ч' : '—'">0</div>
+                    <div class="kpi-sub">Среднее число заказов за 1 отработанный человеко-час</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Отработано человеко-часов (H)</div>
+                    <div class="kpi-value" th:text="${@fmt.num(productivity.personHours(), 1)} + ' ч'">0 ч</div>
+                    <div class="kpi-sub" th:text="'Дней со сменами: ' + ${productivity.daysWithShifts()}">0</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Обработано заказов за смены (N)</div>
+                    <div class="kpi-value" th:text="${productivity.orders()}">0</div>
+                    <div class="kpi-sub">
+                        <a th:href="@{/analytics#model7}" class="text-decoration-none">Подробнее в Математической аналитике →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <!-- Сотрудники -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people me-2 text-primary"></i>Сотрудники</span>
+                        <span class="badge bg-light text-dark border" th:text="${#lists.size(employees)} + ' чел.'">0</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>ФИО</th>
+                                    <th>Должность</th>
+                                    <th class="text-end">Ставка/ч</th>
+                                    <th>Статус</th>
+                                    <th class="text-end"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:if="${#lists.isEmpty(employees)}">
+                                    <td colspan="5" class="text-center text-muted py-4">Сотрудники не добавлены.</td>
+                                </tr>
+                                <tr th:each="e : ${employees}">
+                                    <td>
+                                        <div class="fw-semibold" th:text="${e.fullName}">Имя</div>
+                                        <div class="small text-muted" th:text="${e.phone ?: ''}"></div>
+                                    </td>
+                                    <td th:text="${e.position}">Повар</td>
+                                    <td class="text-end" th:text="${e.hourlyRate != null} ? ${@fmt.money(e.hourlyRate)} : '—'">—</td>
+                                    <td>
+                                        <span th:if="${e.active}" class="badge bg-success-subtle text-success">Активен</span>
+                                        <span th:unless="${e.active}" class="badge bg-secondary-subtle text-secondary">Неактивен</span>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <a th:href="@{/staff/employees/{id}/edit(id=${e.id})}" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form th:action="@{/staff/employees/{id}/delete(id=${e.id})}" method="post" class="d-inline"
+                                              onsubmit="return confirm('Удалить или деактивировать сотрудника?')">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Массовое создание графика смен -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-plus me-2 text-danger"></i>Создать график смен на период
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/staff/schedule}" th:object="${scheduleForm}" method="post">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">Выберите сотрудников (можно несколько) *</label>
+                                <div class="border rounded p-2" style="max-height: 140px; overflow-y: auto;">
+                                    <div th:if="${#lists.isEmpty(activeEmployees)}" class="text-muted small">
+                                        Нет активных сотрудников.
+                                    </div>
+                                    <div class="form-check" th:each="e : ${activeEmployees}">
+                                        <input class="form-check-input" type="checkbox" name="employeeIds"
+                                               th:value="${e.id}" th:id="'emp_' + ${e.id}">
+                                        <label class="form-check-label small" th:for="'emp_' + ${e.id}"
+                                               th:text="${e.fullName} + ' (' + ${e.position} + ')'">Сотрудник</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Дата с *</label>
+                                    <input type="date" class="form-control form-control-sm" th:field="*{dateFrom}" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Дата по *</label>
+                                    <input type="date" class="form-control form-control-sm" th:field="*{dateTo}" required>
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Начало смены *</label>
+                                    <input type="time" class="form-control form-control-sm" th:field="*{startTime}" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Окончание смены *</label>
+                                    <input type="time" class="form-control form-control-sm" th:field="*{endTime}" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-calendar-check me-1"></i>Сформировать график смен
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Производительность по сотрудникам -->
+        <div class="card mb-4" th:if="${productivity.error() == null and !#lists.isEmpty(productivity.employees())}">
+            <div class="card-header">Производительность сотрудников (E = N / H)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Сотрудник</th>
+                            <th>Должность</th>
+                            <th class="text-end">Смен</th>
+                            <th class="text-end">Отработано часов (H)</th>
+                            <th class="text-end">Заказов в его смены (N)</th>
+                            <th class="text-end">E (зак./чел·ч)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="emp : ${productivity.employees()}">
+                            <td class="fw-semibold" th:text="${emp.name()}">Имя</td>
+                            <td th:text="${emp.position()}">Должность</td>
+                            <td class="text-end" th:text="${emp.shifts()}">0</td>
+                            <td class="text-end" th:text="${@fmt.num(emp.hours(), 1)}">0</td>
+                            <td class="text-end" th:text="${emp.ordersDuringShifts()}">0</td>
+                            <td class="text-end fw-bold text-primary" th:text="${@fmt.num(emp.productivity())}">0</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица смен -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>График смен за выбранный период</span>
+                <span class="badge bg-light text-dark border" th:text="${#lists.size(shifts)} + ' смен'">0</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Сотрудников в этот день</th>
+                            <th>Сотрудник</th>
+                            <th>Должность</th>
+                            <th>Время смены</th>
+                            <th class="text-end">Отработано часов</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(shifts)}">
+                            <td colspan="7" class="text-center text-muted py-4">Смен за выбранный период нет.</td>
+                        </tr>
+                        <tr th:each="s : ${shifts}">
+                            <td class="fw-medium" th:text="${#temporals.format(s.shiftDate, 'dd.MM.yyyy')}">01.01.2026</td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info-emphasis"
+                                      th:text="${staffPerDay[s.shiftDate] != null ? staffPerDay[s.shiftDate].size() : 1} + ' чел.'">2 чел.</span>
+                            </td>
+                            <td class="fw-semibold" th:text="${s.employee.fullName}">Имя</td>
+                            <td class="text-muted" th:text="${s.employee.position}">Повар</td>
+                            <td th:text="${#temporals.format(s.startTime, 'HH:mm')} + ' – ' + ${#temporals.format(s.endTime, 'HH:mm')}">09:00 – 16:00</td>
+                            <td class="text-end fw-medium" th:text="${@fmt.num(s.workedHours.doubleValue(), 2)} + ' ч'">7.00 ч</td>
+                            <td class="text-end text-nowrap">
+                                <a th:href="@{/staff/shifts/{id}/edit(id=${s.id})}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form th:action="@{/staff/shifts/{id}/delete(id=${s.id})}" method="post" class="d-inline"
+                                      onsubmit="return confirm('Удалить эту смену?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

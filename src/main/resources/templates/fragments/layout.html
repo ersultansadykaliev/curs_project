@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} + ' — CRM Analytics for Fast Food'">CRM Analytics for Fast Food</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+
+<div th:fragment="shell(pageTitle, content)" class="app-wrapper">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <aside id="appSidebar" class="sidebar">
+        <div class="sidebar-brand">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-fire text-danger fs-4"></i>
+                <div>
+                    <div class="brand-title" th:text="${businessName}">Fast Food</div>
+                    <div class="brand-sub">CRM Analytics</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Обзор</div>
+            <a class="nav-link" th:href="@{/}"
+               th:classappend="${currentUri == '/' or currentUri == '/dashboard'} ? 'active'">
+                <i class="bi bi-speedometer2"></i><span>Главная панель</span>
+            </a>
+
+            <div class="nav-section-label">Операции</div>
+            <a class="nav-link" th:href="@{/orders}"
+               th:classappend="${#strings.startsWith(currentUri, '/orders')} ? 'active'">
+                <i class="bi bi-receipt"></i><span>Заказы</span>
+            </a>
+            <a class="nav-link" th:href="@{/products}"
+               th:classappend="${#strings.startsWith(currentUri, '/products')} ? 'active'">
+                <i class="bi bi-cup-hot"></i><span>Товары</span>
+            </a>
+            <a class="nav-link" th:href="@{/ingredients}"
+               th:classappend="${#strings.startsWith(currentUri, '/ingredients')} ? 'active'">
+                <i class="bi bi-basket2"></i><span>Ингредиенты</span>
+            </a>
+            <a class="nav-link" th:href="@{/costing}"
+               th:classappend="${#strings.startsWith(currentUri, '/costing')} ? 'active'">
+                <i class="bi bi-calculator"></i><span>Себестоимость</span>
+            </a>
+            <a class="nav-link" th:href="@{/expenses}"
+               th:classappend="${#strings.startsWith(currentUri, '/expenses')} ? 'active'">
+                <i class="bi bi-wallet2"></i><span>Расходы</span>
+            </a>
+            <a class="nav-link" th:href="@{/staff}"
+               th:classappend="${#strings.startsWith(currentUri, '/staff')} ? 'active'">
+                <i class="bi bi-people"></i><span>Персонал</span>
+            </a>
+
+            <div class="nav-section-label">Аналитика и управление</div>
+            <a class="nav-link" th:href="@{/analytics}"
+               th:classappend="${#strings.startsWith(currentUri, '/analytics')} ? 'active'">
+                <i class="bi bi-graph-up-arrow"></i><span>Математическая аналитика</span>
+            </a>
+            <a class="nav-link" th:href="@{/finance}"
+               th:classappend="${#strings.startsWith(currentUri, '/finance')} ? 'active'">
+                <i class="bi bi-bar-chart-line"></i><span>Финансовые отчёты</span>
+            </a>
+            <a class="nav-link" th:href="@{/settings}"
+               th:classappend="${#strings.startsWith(currentUri, '/settings')} ? 'active'">
+                <i class="bi bi-gear"></i><span>Настройки и импорт</span>
+            </a>
+        </nav>
+
+        <div class="p-3 border-top border-secondary border-opacity-25 small text-secondary">
+            <div>Валюта: <strong class="text-light">сом (KGS)</strong></div>
+            <div>Моделей: <strong class="text-light">7</strong></div>
+        </div>
+    </aside>
+
+    <div class="main-area">
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-2">
+                <button id="sidebarToggle" class="btn btn-outline-secondary btn-sm d-lg-none" type="button"
+                        aria-label="Открыть меню">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+                <h1 class="h5 mb-0 fw-semibold" th:text="${pageTitle}">Страница</h1>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 gap-md-3">
+                <a th:href="@{/settings}" class="text-decoration-none" title="Переключить режим данных в Настройках">
+                    <span th:if="${demoMode}" class="badge bg-warning text-dark px-2 py-2">
+                        <i class="bi bi-database-check me-1"></i>Демо-данные
+                    </span>
+                    <span th:unless="${demoMode}" class="badge bg-success px-2 py-2">
+                        <i class="bi bi-building-check me-1"></i>Реальные данные
+                    </span>
+                </a>
+
+                <span class="text-muted small d-none d-md-inline">
+                    <i class="bi bi-person-circle me-1"></i>
+                    <span sec:authentication="name">admin</span>
+                </span>
+
+                <form th:action="@{/logout}" method="post" class="m-0">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-sm-inline ms-1">Выйти</span>
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <span th:text="${successMessage}">Успешно</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span th:text="${errorMessage}">Ошибка</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <th:block th:replace="${content}"/>
+        </main>
+    </div>
+</div>
+
+<th:block th:fragment="scripts">
+    <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+    <script th:src="@{/webjars/chart.js/4.4.1/dist/chart.umd.js}"></script>
+    <script th:src="@{/js/app.js}"></script>
+</th:block>
+
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Товары')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: shell('Модуль товаров', ~{::main})}">
+    <main>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <p class="text-muted small mb-0">
+                Себестоимость каждого товара рассчитывается автоматически из технологической карты (ингредиентов).
+            </p>
+            <div class="d-flex gap-2">
+                <a th:href="@{/costing}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calculator me-1"></i>Технологические карты
+                </a>
+                <a th:href="@{/products/new}" class="btn btn-danger btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Добавить товар
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Категория</th>
+                            <th class="text-end">Цена продажи (P)</th>
+                            <th class="text-end">Себестоимость (C)</th>
+                            <th class="text-end">Маржа (M)</th>
+                            <th class="text-end">Продаж</th>
+                            <th>Состав</th>
+                            <th>Статус</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(products)}">
+                            <td colspan="10" class="text-center text-muted py-4">Список товаров пуст.</td>
+                        </tr>
+                        <tr th:each="p : ${products}">
+                            <td class="text-muted" th:text="'#' + ${p.id()}">#1</td>
+                            <td class="fw-semibold" th:text="${p.name()}">Бургер</td>
+                            <td th:text="${p.category() ?: '—'}">Бургеры</td>
+                            <td class="text-end fw-semibold" th:text="${@fmt.money(p.price())}">0 сом</td>
+                            <td class="text-end" th:text="${@fmt.money(p.cost())}">0 сом</td>
+                            <td class="text-end">
+                                <span th:classappend="${p.margin() >= 0} ? 'text-success' : 'text-danger'"
+                                      th:text="${@fmt.money(p.margin())}">0</span>
+                                <div class="small text-muted" th:text="${@fmt.pct(p.marginPercent())}">0%</div>
+                            </td>
+                            <td class="text-end fw-medium" th:text="${p.unitsSold()} + ' шт.'">0</td>
+                            <td>
+                                <a th:href="@{/costing(productId=${p.id()})}" class="badge text-decoration-none"
+                                   th:classappend="${p.ingredientsCount() > 0} ? 'bg-info text-dark' : 'bg-warning text-dark'"
+                                   th:text="${p.ingredientsCount() > 0} ? ${p.ingredientsCount()} + ' ингр.' : 'Не задан'">
+                                    0 ингр.
+                                </a>
+                            </td>
+                            <td>
+                                <span th:if="${p.active()}" class="badge bg-success-subtle text-success border border-success-subtle">Активен</span>
+                                <span th:unless="${p.active()}" class="badge bg-secondary-subtle text-secondary border">Скрыт</span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a th:href="@{/costing(productId=${p.id()})}" class="btn btn-outline-secondary btn-sm" title="Состав и себестоимость">
+                                    <i class="bi bi-list-check"></i>
+                                </a>
+                                <a th:href="@{/products/{id}/edit(id=${p.id()})}" class="btn btn-outline-primary btn-sm" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form th:action="@{/products/{id}/delete(id=${p.id()})}" method="post" class="d-inline"
+                                      onsubmit="return confirm('Удалить этот товар?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>
